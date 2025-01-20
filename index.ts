@@ -1,6 +1,15 @@
 import fs from 'fs/promises'
 import { DateTime } from 'luxon'
 
+import type IGame from './types/Game'
+import type IGenre from './types/Genre'
+
+import GameLiteDB from './db/Game.json' with { type: 'json' }
+import GenreLiteDB from './db/Genre.json' with { type: 'json' }
+
+const GameDB = GameLiteDB as IGame[]
+const GenreDB = GenreLiteDB as IGenre[]
+
 const PATH = `${process.env.APPDATA}\\Playnite\\ExtensionsData\\afbb1a0d-04a1-4d0c-9afa-c6e42ca855b4\\GameActivity`
 const OUTPUT_FILENAME = 'Game Activity.tsv'
 
@@ -29,15 +38,35 @@ const readFiles = async <T>(path: string) => {
         .then<T[]>(res => res.map(res => JSON.parse(res.value)))
 }
 
-const buildTSV = (activities: GameActivity[]): string => {
-    const columns = [['Id', 'Name', 'SessionDate', 'HoursPlayed']]
+const getGenreByGameId = (id: string) => {
+    const gameData = GameDB.find((game) => game._id.$guid === id)
 
-    const sortByDateDesc = (rowA: any[], rowB: any[]) => rowA[2] < rowB[2] ? 1 : -1
+    if (!gameData || !gameData.GenreIds) return 'Undefined'
+
+    // Get genre by priority
+    const genreId = GenreDB
+        .sort((genreA, genreB) => genreA.Priority < genreB.Priority ? -1 : 1)
+        .find((genre) => {
+            return gameData.GenreIds.find((gameGenre) => gameGenre.$guid === genre._id.$guid)
+        })
+
+    const genre = GenreDB.find((genre) => genre._id.$guid === genreId?._id.$guid)
+
+    if (!genre) return 'Undefined'
+
+    return genre.Name
+}
+
+const buildTSV = (activities: GameActivity[]): string => {
+    const columns = [['Id', 'Name', 'Genre', 'SessionDate', 'HoursPlayed']]
+
+    const sortByDateDesc = (rowA: any[], rowB: any[]) => rowA[3] < rowB[3] ? 1 : -1
 
     const table = activities.flatMap((activity) => {
         const items = activity.Items.map<any[]>((item) => {
             const date = DateTime.fromISO(item.DateSession)
-            return [activity.Id, activity.Name, date.toFormat('yyyy-MM-dd HH:mm:ss'), item.ElapsedSeconds / 86400]
+            const genre = getGenreByGameId(activity.Id)
+            return [activity.Id, activity.Name, genre, date.toFormat('yyyy-MM-dd HH:mm:ss'), item.ElapsedSeconds / 86400]
         })
 
         return items
