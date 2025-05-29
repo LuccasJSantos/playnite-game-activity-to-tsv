@@ -39,7 +39,7 @@ const buildTSV = (activities: GameActivity[]): string => {
         return items
     }).sort(sortByDateDesc)
 
-    return columns.concat(table).join('\n').replace(/\,/g, '\t')
+    return columns.concat(table).map((row) => row.join('\t')).join('\n')
 }
 
 const init = async () => {
