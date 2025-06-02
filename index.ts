@@ -34,7 +34,7 @@ const buildTSV = (activities: GameActivity[]): string => {
 
     const table = activities.flatMap((activity) => {
         const items = activity.Items
-            .filter((item) => item.ElapsedSeconds > 60 * 1) // filter out activities lower than 5 minutes
+            .filter((item) => item.ElapsedSeconds > 60 * 5) // filter out activities lower than 5 minutes
             .map((item) => injector.execute({ activity, item }))
         return items
     }).sort(sortByDateDesc)
